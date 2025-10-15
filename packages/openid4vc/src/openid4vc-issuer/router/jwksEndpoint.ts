@@ -1,4 +1,4 @@
-import type { Jwk, JwkSet } from '@openid4vc/oauth2'
+import type { JwkSet } from '@openid4vc/oauth2'
 import type { Response, Router } from 'express'
 import { getRequestContext, sendJsonResponse, sendUnknownServerErrorResponse } from '../../shared/router'
 import type { OpenId4VcIssuerModuleConfig } from '../OpenId4VcIssuerModuleConfig'
@@ -8,11 +8,10 @@ export function configureJwksEndpoint(router: Router, config: OpenId4VcIssuerMod
   router.get(config.jwksEndpointPath, async (_request: OpenId4VcIssuanceRequest, response: Response, next) => {
     const { agentContext, issuer } = getRequestContext(_request)
     try {
-      const jwks = {
-        // Not needed to include kid in public facing JWKs
-        keys: [issuer.resolvedAccessTokenPublicJwk.toJson({ includeKid: false }) as Jwk],
-      } satisfies JwkSet
-
+      const keys = [issuer.resolvedAccessTokenPublicJwk, ...issuer.resolvedJwks]
+      const jwks: JwkSet = {
+        keys: keys.map((key) => key.toJson({ includeKid: true })),
+      }
       return sendJsonResponse(response, next, jwks, 'application/jwk-set+json')
     } catch (e) {
       return sendUnknownServerErrorResponse(response, next, agentContext.config.logger, e)

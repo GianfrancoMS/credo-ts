@@ -5,6 +5,7 @@ import { TypedArrayEncoder } from '../../utils'
 import { DidResolverService, DidsApi, getPublicJwkFromVerificationMethod, parseDid } from '../dids'
 import { type Jwk, KeyManagementApi, PublicJwk } from '../kms'
 import type { SdJwtVcHolderBinding } from './SdJwtVcOptions'
+import type { Jwks, SdJwtVcIssuerMetadata } from './typeMetadata'
 
 export async function resolveSigningPublicJwkFromDidUrl(agentContext: AgentContext, didUrl: string) {
   const dids = agentContext.dependencyManager.resolve(DidsApi)
@@ -21,6 +22,44 @@ export async function resolveDidUrl(agentContext: AgentContext, didUrl: string) 
     verificationMethod: didDocument.dereferenceKey(didUrl, ['assertionMethod']),
     didDocument,
   }
+}
+
+async function fetch<Type>(agentContext: AgentContext, url: string): Promise<Type | null> {
+  try {
+    const result = await agentContext.config.agentDependencies.fetch(url)
+    if (result.ok) {
+      return (await result.json()) as Type
+    }
+    return null
+  } catch (_error) {
+    return null
+  }
+}
+
+export async function resolveSigningPublicJwkFromJwtVcIssuerMetadata(
+  agentContext: AgentContext,
+  issuer: string,
+  kid: string
+): Promise<{ jwk: PublicJwk; issuer: string } | null> {
+  const url = new URL(issuer)
+  const formattedUrl = `${url.origin}/.well-known/jwt-vc-issuer${url.pathname}`
+  const metadata = await fetch<SdJwtVcIssuerMetadata>(agentContext, formattedUrl)
+  if (metadata?.jwks) {
+    const jwk = metadata.jwks.keys.find((key) => key.kid === kid)
+    if (jwk) {
+      return { jwk: PublicJwk.fromUnknown(jwk), issuer: metadata.issuer }
+    }
+  }
+  if (metadata?.jwks_uri) {
+    const jwks = await fetch<Jwks>(agentContext, metadata.jwks_uri)
+    if (jwks) {
+      const jwk = jwks.keys.find((key) => key.kid === kid)
+      if (jwk) {
+        return { jwk: PublicJwk.fromUnknown(jwk), issuer: metadata.issuer }
+      }
+    }
+  }
+  return null
 }
 
 export async function extractKeyFromHolderBinding(
