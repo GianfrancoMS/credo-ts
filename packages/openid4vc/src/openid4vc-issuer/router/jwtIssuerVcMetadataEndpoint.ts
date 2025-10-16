@@ -1,4 +1,5 @@
 import type { SdJwtVcIssuerMetadata } from '@credo-ts/core'
+import type { Jwk } from '@openid4vc/oauth2'
 import type { Response, Router } from 'express'
 import { getRequestContext, sendJsonResponse, sendUnknownServerErrorResponse } from '../../shared/router'
 import { OpenId4VcIssuerService } from '../OpenId4VcIssuerService'
@@ -20,7 +21,7 @@ export function configureJwtVcIssuerMetadataEndpoint(router: Router) {
           : {
               issuer: issuerMetadata.credentialIssuer.credential_issuer,
               jwks: {
-                keys: issuer.resolvedJwks?.map((jwk) => jwk.toJson({ includeKid: true })) ?? [],
+                keys: issuer.resolvedJwks?.map((jwk) => jwk.toJson({ includeKid: true }) as Jwk) ?? [],
               },
             }
       return sendJsonResponse(response, next, metadata)

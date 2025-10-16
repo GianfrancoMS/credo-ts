@@ -2,6 +2,7 @@ import type { Signer, Verifier } from '@sd-jwt/types'
 import { AgentContext } from '../../agent'
 import { CredoError } from '../../error'
 import { TypedArrayEncoder } from '../../utils'
+import { joinUriParts } from '../../utils/path'
 import { DidResolverService, DidsApi, getPublicJwkFromVerificationMethod, parseDid } from '../dids'
 import { type Jwk, KeyManagementApi, PublicJwk } from '../kms'
 import type { SdJwtVcHolderBinding } from './SdJwtVcOptions'
@@ -42,24 +43,25 @@ export async function resolveSigningPublicJwkFromJwtVcIssuerMetadata(
   kid: string
 ): Promise<{ jwk: PublicJwk; issuer: string } | null> {
   const url = new URL(issuer)
-  const formattedUrl = `${url.origin}/.well-known/jwt-vc-issuer${url.pathname}`
-  const metadata = await fetch<SdJwtVcIssuerMetadata>(agentContext, formattedUrl)
-  if (metadata?.jwks) {
+  const wellKnownPath = '.well-known/jwt-vc-issuer'
+  const compliantUrl = joinUriParts(url.origin, [wellKnownPath, url.pathname])
+  const nonCompliantUrl = joinUriParts(issuer, [wellKnownPath])
+  const metadata =
+    (await fetch<SdJwtVcIssuerMetadata>(agentContext, compliantUrl)) ??
+    (await fetch<SdJwtVcIssuerMetadata>(agentContext, nonCompliantUrl))
+  if (!metadata) return null
+  if (metadata.jwks) {
     const jwk = metadata.jwks.keys.find((key) => key.kid === kid)
-    if (jwk) {
-      return { jwk: PublicJwk.fromUnknown(jwk), issuer: metadata.issuer }
-    }
+    if (!jwk) return null
+    return { jwk: PublicJwk.fromUnknown(jwk), issuer: metadata.issuer }
   }
-  if (metadata?.jwks_uri) {
-    const jwks = await fetch<Jwks>(agentContext, metadata.jwks_uri)
-    if (jwks) {
-      const jwk = jwks.keys.find((key) => key.kid === kid)
-      if (jwk) {
-        return { jwk: PublicJwk.fromUnknown(jwk), issuer: metadata.issuer }
-      }
-    }
-  }
-  return null
+  const jwks = await fetch<Jwks>(agentContext, metadata.jwks_uri)
+  if (!jwks) return null
+
+  const jwk = jwks.keys.find((key) => key.kid === kid)
+  if (!jwk) return null
+
+  return { jwk: PublicJwk.fromUnknown(jwk), issuer: metadata.issuer }
 }
 
 export async function extractKeyFromHolderBinding(

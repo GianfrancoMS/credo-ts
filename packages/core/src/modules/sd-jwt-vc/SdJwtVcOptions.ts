@@ -57,13 +57,13 @@ export interface SdJwtVcIssuerJwk {
   method: 'jwk'
 
   /**
-   * The JWK that should be presente at GET /.well-known/jwt-vc-issuer or at the issuer's JWKs URI
+   * The JWK that should be present at GET /.well-known/jwt-vc-issuer or at the issuer's JWKs URI
    */
   jwk: PublicJwk
 
   /**
    * The issuer of the JWT. It should be a HTTPS URI.
-   * Holde rand verifiers should be able to call GET /.well-known/jwt-vc-issuer from this issuer
+   * Holders and verifiers should be able to call GET /.well-known/jwt-vc-issuer from this issuer
    */
   issuer: string
 }
