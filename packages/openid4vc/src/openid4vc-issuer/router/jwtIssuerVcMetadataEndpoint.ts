@@ -5,8 +5,8 @@ import { getRequestContext, sendJsonResponse, sendUnknownServerErrorResponse } f
 import { OpenId4VcIssuerService } from '../OpenId4VcIssuerService'
 import type { OpenId4VcIssuanceRequest } from './requestContext'
 
-export function configureJwtVcIssuerMetadataEndpoint(router: Router) {
-  router.get('/.well-known/jwt-vc-issuer', async (_request: OpenId4VcIssuanceRequest, response: Response, next) => {
+export function configureJwtVcIssuerMetadataEndpoint(router: Router, path: string) {
+  router.get(path, async (_request: OpenId4VcIssuanceRequest, response: Response, next) => {
     const { agentContext, issuer } = getRequestContext(_request)
     try {
       const openId4VcIssuerService = agentContext.dependencyManager.resolve(OpenId4VcIssuerService)
